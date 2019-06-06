@@ -51,7 +51,6 @@ module Packaging
         "**/src/bin"                => YAST_LIB_DIR,
         "**/src/autoyast[_-]rnc/*"  => AUTOYAST_RNC_DIR,
         "**/src/fillup/*"           => fillup_dir,
-        "**/src/desktop/*.desktop"  => YAST_DESKTOP_DIR,
         "{README*,CONTRIBUTING.md}" => install_doc_dir,
         "**/icons/*"                => YAST_ICON_BASE_DIR,
         "**/theme/*"                => YAST_THEME_DIR
@@ -73,6 +72,16 @@ end
 desc "Install to system"
 task :install do
   config = ::Packaging::Configuration.instance
+  # Handle desktop files seperately, for translations
+  FileUtils.mkdir_p(YAST_DESKTOP_DIR, verbose: true) unless File.directory?(YAST_DESKTOP_DIR)
+  Dir["**/src/desktop/*.desktop"].each do |source|
+    basename = File.basename(source)
+    begin
+      sh "msgfmt --desktop -d #{YAST_DIR}/desktop-translations --template #{source} -o #{YAST_DESKTOP_DIR}/#{basename}"
+    rescue => e
+      raise "Cannot translate file #{source} to #{YAST_DESKTOP_DIR}: #{e.message}"
+    end
+  end
   config.install_locations.each_pair do |glob, install_to|
     FileUtils.mkdir_p(install_to, verbose: true) unless File.directory?(install_to)
     Dir[glob].each do |source|
